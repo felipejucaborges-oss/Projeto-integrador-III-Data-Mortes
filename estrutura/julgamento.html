@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interface de Julgamento de Relevância (qrels)</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f9; color: #333; }
+        h1 { color: #2c3e50; }
+        .card { background: white; padding: 15px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .query-title { font-weight: bold; color: #2980b9; margin-bottom: 5px; }
+        .doc-title { font-weight: bold; color: #16a085; }
+        select { padding: 5px; margin-left: 10px; border-radius: 4px; border: 1px solid #ccc; }
+        button { background-color: #27ae60; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-size: 16px; margin-top: 15px; }
+        button:hover { background-color: #219150; }
+    </style>
+</head>
+<body>
+
+    <h1>Julgamento de Relevância — Avaliação IR</h1>
+    <p>Atribua a relevância (0 a 3) para cada par Consulta-Documento do pooling:</p>
+
+    <div id="container">
+        <!-- Par 1 -->
+        <div class="card" data-consulta="q01" data-documento="santos">
+            <div class="query-title">Consulta q01: "café museu"</div>
+            <div class="doc-title">Documento: Santos (Bolsa do Café)</div>
+            <p><strong>Grau de Relevância:</strong>
+                <select class="grau-select">
+                    <option value="0">0 - Não Relevante</option>
+                    <option value="1">1 - Marginalmente Relevante</option>
+                    <option value="2">2 - Relevante</option>
+                    <option value="3" selected>3 - Altamente Relevante</option>
+                </select>
+            </p>
+        </div>
+
+        <div class="card" data-consulta="q01" data-documento="praia_grande">
+            <div class="query-title">Consulta q01: "café museu"</div>
+            <div class="doc-title">Documento: Praia Grande (Fortaleza de Itaipu)</div>
+            <p><strong>Grau de Relevância:</strong>
+                <select class="grau-select">
+                    <option value="0" selected>0 - Não Relevante</option>
+                    <option value="1">1 - Marginalmente Relevante</option>
+                    <option value="2">2 - Relevante</option>
+                    <option value="3">3 - Altamente Relevante</option>
+                </select>
+            </p>
+        </div>
+
+        <div class="card" data-consulta="q01" data-documento="sao_vicente">
+            <div class="query-title">Consulta q01: "café museu"</div>
+            <div class="doc-title">Documento: São Vicente (Primeira Cidade)</div>
+            <p><strong>Grau de Relevância:</strong>
+                <select class="grau-select">
+                    <option value="0" selected>0 - Não Relevante</option>
+                    <option value="1">1 - Marginalmente Relevante</option>
+                    <option value="2">2 - Relevante</option>
+                    <option value="3">3 - Altamente Relevante</option>
+                </select>
+            </p>
+        </div>
+
+        <!-- Par 2 -->
+        <div class="card" data-consulta="q02" data-documento="praia_grande">
+            <div class="query-title">Consulta q02: "fortaleza artilharia"</div>
+            <div class="doc-title">Documento: Praia Grande (Fortaleza de Itaipu)</div>
+            <p><strong>Grau de Relevância:</strong>
+                <select class="grau-select">
+                    <option value="0">0 - Não Relevante</option>
+                    <option value="1">1 - Marginalmente Relevante</option>
+                    <option value="2">2 - Relevante</option>
+                    <option value="3" selected>3 - Altamente Relevante</option>
+                </select>
+            </p>
+        </div>
+
+        <!-- Par 3 -->
+        <div class="card" data-consulta="q03" data-documento="sao_vicente">
+            <div class="query-title">Consulta q03: "fundação primeira cidade"</div>
+            <div class="doc-title">Documento: São Vicente (Primeira Cidade)</div>
+            <p><strong>Grau de Relevância:</strong>
+                <select class="grau-select">
+                    <option value="0">0 - Não Relevante</option>
+                    <option value="1">1 - Marginalmente Relevante</option>
+                    <option value="2">2 - Relevante</option>
+                    <option value="3" selected>3 - Altamente Relevante</option>
+                </select>
+            </p>
+        </div>
+    </div>
+
+    <button onclick="gerarCSV()">Exportar qrels.csv</button>
+
+    <script>
+        function gerarCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,consulta,documento,grau\n";
+            const cards = document.querySelectorAll('.card');
+
+            cards.forEach(card => {
+                const consulta = card.getAttribute('data-consulta');
+                const documento = card.getAttribute('data-documento');
+                const grau = card.querySelector('.grau-select').value;
+                csvContent += `${consulta},${documento},${grau}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "qrels.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
