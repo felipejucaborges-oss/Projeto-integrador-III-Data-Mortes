@@ -1,0 +1,6 @@
+"consulta","texto_consulta","necessidade","escopo","conjunto"
+"q01","café museu santos","Quero saber o que funcionava no prédio da Bolsa do Café em Santos e o que existe lá hoje.","Não conta texto sobre o cultivo ou o preparo do café, nem sobre museus de outras cidades.","dev"
+"q02","forte artilharia canhões","Quero saber como era a defesa militar da Fortaleza de Itaipu: que armamento tinha e como estava organizada.","Não conta história geral de Praia Grande nem outras fortificações citadas só de passagem.","dev"
+"q03","primeira vila fundada no Brasil","Quero saber quando e por quem a ilha de São Vicente foi descoberta e como a vila se tornou a primeira da América Portuguesa.","Não conta a história posterior da cidade (economia, população, política atual).","dev"
+"q04","onde se negociava o café antigamente","Quero saber como e por que foi criada a Bolsa do Café de Santos, e onde ela se localizava, para entender como o comércio de café era organizado.","Não conta descrição do museu atual sem relação com a atividade de negociação.","teste"
+"q05","proteger a costa contra invasores","Quero saber por que a Fortaleza de Itaipu foi construída e de que ameaças ela protegia o litoral.","Não conta o estado de conservação ou o uso turístico atual.","teste"
