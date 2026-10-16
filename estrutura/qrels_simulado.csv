@@ -1,0 +1,16 @@
+"consulta","documento","grau","juiz","timestamp","segundos"
+"q01","santos",1,"simulado","2026-10-16 12:59:35",9
+"q01","praia_grande",0,"simulado","2026-10-16 12:59:35",13
+"q01","sao_vicente",2,"simulado","2026-10-16 12:59:35",8
+"q02","santos",2,"simulado","2026-10-16 12:59:35",14
+"q02","praia_grande",2,"simulado","2026-10-16 12:59:35",12
+"q02","sao_vicente",1,"simulado","2026-10-16 12:59:35",8
+"q03","santos",0,"simulado","2026-10-16 12:59:35",9
+"q03","praia_grande",1,"simulado","2026-10-16 12:59:35",8
+"q03","sao_vicente",0,"simulado","2026-10-16 12:59:35",6
+"q04","santos",1,"simulado","2026-10-16 12:59:35",7
+"q04","praia_grande",1,"simulado","2026-10-16 12:59:35",13
+"q04","sao_vicente",0,"simulado","2026-10-16 12:59:35",8
+"q05","santos",0,"simulado","2026-10-16 12:59:35",9
+"q05","praia_grande",2,"simulado","2026-10-16 12:59:35",6
+"q05","sao_vicente",0,"simulado","2026-10-16 12:59:35",12
