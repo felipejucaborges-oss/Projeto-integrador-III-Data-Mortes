@@ -1,0 +1,458 @@
+% ==========================================================
+% ENTREGA 1 — O corpus do projeto
+% Projeto Integrador III — Motor de Busca — Ciência de Dados
+% Fatec Baixada Santista – Rubens Lara
+% ==========================================================
+
+\documentclass[
+  article,
+  12pt,
+  oneside,
+  a4paper,
+  english,
+  brazil
+]{abntex2}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage{icomma}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage[alf]{abntex2cite}
+\usepackage{graphicx}
+
+\hypersetup{hidelinks}
+
+% ----------------------------------------------------------
+% DADOS DA ENTREGA — substitua apenas os dados do grupo
+% ----------------------------------------------------------
+\titulo{Motor de busca sobre a Baixada Santista: corpus, BM25 e proximidade de termos}
+\tituloestrangeiro{}
+\autor{DataMortes}
+\local{Santos-SP}
+\data{\today}
+
+\newcommand{\nomecurso}{Tecnologia em Ciência de Dados}
+\newcommand{\nomedisciplina}{Projeto Integrador III --- Motor de Busca}
+\newcommand{\nomeprofessor}{Prof. Dr. João Paulo Ferreira de Mello}
+\newcommand{\repositorio}{https://github.com/felipejucaborges-oss/Projeto-integrador-III-Data-Mortes}
+
+\newcommand{\integrantes}{%
+  Enzo Shinji Sugano Ura -- RA 0051352511025 \\
+  Felipe Juca Gozza Borges -- RA 0051352411031 \\
+  Victor Ferreira Santos  -- RA 0051352511028%
+}
+
+\begin{document}
+
+<<setup, include=FALSE>>=
+library(knitr)
+
+opts_chunk$set(
+  echo       = FALSE,
+  message    = FALSE,
+  warning    = FALSE,
+  fig.align  = "center",
+  out.width  = "0.72\\linewidth",
+  fig.width  = 5,
+  fig.height = 3
+)
+@
+
+\selectlanguage{brazil}
+\frenchspacing
+
+\maketitle
+
+\begin{center}
+  \small
+  Fatec Baixada Santista -- Rubens Lara \\
+  \nomecurso{} \quad|\quad \nomedisciplina{} \quad|\quad \nomeprofessor{} \\[0.4em]
+  \integrantes \\[0.4em]
+  Repositório: \texttt{\repositorio}
+\end{center}
+
+\textual
+
+% ==========================================================
+\section{Introdução}
+% ==========================================================
+
+O projeto tem como tema um motor de busca para informações históricas da
+Baixada Santista. Três perguntas de referência orientam a escolha das fontes:
+os marcos históricos da fundação de São Vicente e Santos, a importância militar
+e turística da Fortaleza de Itaipu e o desenvolvimento do comércio do café no
+porto de Santos.
+
+Este artigo descreve o corpus, o ranqueamento com BM25
+(ROBERTSON; ZARAGOZA, 2009), a avaliação com necessidades de informação
+julgadas, uma reordenação por proximidade de termos e quatro famílias de
+variantes dela. Em síntese, o BM25 mostrou-se uma base forte (MAP de 0,817 nas
+nove consultas avaliáveis); o bônus de proximidade inicial, com peso alto,
+prejudicou o teste; e as variantes conservadoras removeram esse dano e, com a
+proximidade por menor trecho, superaram o BM25 por margem pequena (MAP de
+teste de 0,461 contra 0,450), sem perdas nas configurações de baixo peso. Essa
+diferença se apoia em poucas consultas, o que as Seções~\ref{sec:melhorias} e
+\ref{sec:fim} discutem.
+
+% ==========================================================
+\section{O corpus}
+\label{sec:corpus}
+% ==========================================================
+
+A fonte foi a Wikipédia em português, acessada pela API com a biblioteca
+\texttt{httr2}, que devolve o texto puro de cada página. Foram selecionadas
+três páginas ligadas ao tema regional, \textit{Santos}, \textit{Fortaleza de
+Itaipu} e \textit{São Vicente (São Paulo)}, que se relacionam diretamente às
+três perguntas e somaram 54.140, 3.456 e 13.227 caracteres na coleta inicial.
+
+A unidade do corpus é o parágrafo. Removeram-se os vazios, os de menos de 50
+caracteres e os cabeçalhos de seção (\texttt{==}); entraram os de mais de 200
+caracteres, valor de partida que sobe de 50 em 50 enquanto o total superar 60
+documentos, como exige a entrega (o limite final foi 500). Cada documento recebe
+um identificador \texttt{pagina\_NN} e o corpus é gravado em
+\texttt{corpus.csv}.
+
+A versão inicial tinha 55 documentos; a final tem 52. Uma nova coleta, feita
+em execução separada sem alterar o \texttt{corpus.csv}, trouxe 54.181, 3.456 e
+13.228 caracteres e reproduziu exatamente 43, 2 e 7 documentos, com 52
+parágrafos idênticos aos do corpus. A diferença decorre, portanto, do critério
+de segmentação, e não de mudança na Wikipédia: com 200 caracteres o total
+passaria de 60. A Tabela~\ref{tab:diag} compara as duas versões e a
+Figura~\ref{fig:dist-tokens} mostra a distribuição de tokens; o corpus final não
+tem documentos com mais de 300 tokens (a versão inicial tinha 11) nem com menos
+de 20.
+
+\begin{table}[htb]
+  \centering
+  \caption{Diagnóstico do corpus: versão inicial e final}
+  \label{tab:diag}
+  \footnotesize
+  \begin{tabular}{@{}p{0.40\textwidth}p{0.24\textwidth}p{0.24\textwidth}@{}}
+    \toprule
+    \textbf{Verificação} & \textbf{Versão inicial} & \textbf{Versão final} \\
+    \midrule
+    Documentos (limite mínimo de caracteres) & 55 (200) & 52 (500) \\
+    Tokens brutos & 11.341 & 7.156 \\
+    Média de tokens por documento & 206,20 & 137,6 \\
+    Menor / maior documento (tokens) & 45 / 613 & 75 / 242 \\
+    Vocabulário bruto / índice invertido & 3.285 / 2.258 & 2.362 / 1.696 \\
+    Santos / São Vicente / Itaipu (documentos) & 40 / 13 / 2 & 43 / 7 / 2 \\
+    \bottomrule
+  \end{tabular}
+  \fonte{Produção Própria (2026)}
+\end{table}
+
+\begin{figure}[htb]
+  \centering
+  \caption{\label{fig:dist-tokens}Distribuição de tokens por documento}
+  \includegraphics[width=0.42\linewidth]{distribuicao_tokens.png}
+  \fonte{Produção Própria (2026)}
+\end{figure}
+
+O principal ponto de atenção é o desequilíbrio: Santos passou de 72,73\% para
+82,7\% dos documentos e Itaipu tem apenas dois, o que limita as consultas sobre ela. Os
+termos mais frequentes do corpus bruto são palavras funcionais (\texttt{de},
+454 ocorrências; \texttt{a}, 253; \texttt{e}, 223), o que motiva a limpeza
+antes da indexação (MANNING; RAGHAVAN; SCHÜTZE, 2008): minúsculas, remoção de
+números, pontuação, das 73 \textit{stopwords} do código e dos tokens com até
+dois caracteres, e \textit{stemming} com \texttt{SnowballC}. Como a limpeza não
+remove acentos, o radical \texttt{sã} (de ``são'') está entre os mais
+frequentes do índice, com \texttt{cidad} (42 documentos) e \texttt{sant} (40).
+Sobre os tokens limpos construíram-se uma representação TF-IDF
+($\mathrm{idf}=\ln(N/n_t)$) e um índice invertido de 1.696 termos (2.258 na
+versão inicial, que testou ainda buscas booleanas e ranking por cosseno,
+substituídos pela avaliação do BM25).
+
+% ==========================================================
+\section{Ranqueamento, necessidades de informação e métricas}
+\label{sec:bm25}
+% ==========================================================
+
+O modelo de referência é o BM25. Para uma consulta $q$ e um documento $d$,
+\begin{equation}
+  \mathrm{BM25}(q,d)=\sum_{t\in q}\mathrm{IDF}(t)\cdot
+  \frac{f(t,d)\,(k_1+1)}{f(t,d)+k_1\left(1-b+b\,\dfrac{|d|}{\mathrm{avgdl}}\right)},
+  \quad
+  \mathrm{IDF}(t)=\ln\!\left(\frac{N-n_t+0{,}5}{n_t+0{,}5}+1\right),
+\end{equation}
+em que $f(t,d)$ é a frequência do termo no documento, $|d|$ o seu comprimento
+em tokens limpos, $\mathrm{avgdl}$ o comprimento médio, $N$ o número de
+documentos e $n_t$ o de documentos com o termo, com $k_1=1{,}2$ e $b=0{,}75$.
+A consulta passa pela mesma limpeza dos documentos.
+
+A avaliação usa dez consultas divididas em desenvolvimento (\textit{dev}) e
+teste (Tabela~\ref{tab:consultas}); a \texttt{q08}, a \texttt{q09} e a
+\texttt{q10} correspondem às três perguntas da Introdução. Cada consulta tem um
+\textit{pool} de julgamento com os 15 primeiros documentos do BM25 e todos os
+que contêm algum termo da consulta, e os graus de relevância estão em
+\texttt{qrels.csv}. Adotou-se o limiar 2 (relevante: grau $\geq 2$; grau 1:
+relevância parcial). A \texttt{q09} só tem documentos de grau 1, logo $R_q=0$
+no limiar 2 e ela fica fora da avaliação principal, que usa seis consultas de
+desenvolvimento e três de teste (\texttt{q07}, \texttt{q08} e \texttt{q10}).
+
+\begin{table}[htb]
+  \centering
+  \caption{Necessidades de informação, conjuntos e tamanho do \textit{pool}}
+  \label{tab:consultas}
+  \footnotesize
+  \begin{tabular}{@{}llccc@{}}
+    \toprule
+    \textbf{ID} & \textbf{Consulta} & \textbf{Conjunto} & \textbf{Pool} & $\boldsymbol{R_q}$ \\
+    \midrule
+    q01 & café museu santos & dev & 40 & 1 \\
+    q02 & forte artilharia canhões & dev & 15 & 2 \\
+    q03 & primeira vila fundada no Brasil & dev & 34 & 2 \\
+    q04 & arquitetura vitrais benedito calixto & dev & 15 & 1 \\
+    q05 & saneamento canais saturnino de brito doenças & dev & 15 & 2 \\
+    q06 & onde se negociava o café antigamente & dev & 19 & 1 \\
+    q07 & proteger a costa contra invasores & teste & 15 & 2 \\
+    q08 & marcos da fundação de São Vicente & teste & 33 & 2 \\
+    q09 & importância militar e turística de Itaipu & teste & 15 & 0 \\
+    q10 & comércio do café porto de santos & teste & 41 & 2 \\
+    \bottomrule
+  \end{tabular}
+  \fonte{Produção Própria (2026). $R_q$: documentos relevantes (grau $\geq 2$).}
+\end{table}
+
+As métricas são $P@3$, $P@5$ e $P@10$, a precisão média (AP, média das
+precisões nas posições dos relevantes dividida por $R_q$), o inverso da posição
+do primeiro relevante (RR) e o nDCG binário e graduado
+(JÄRVELIN; KEKÄLÄINEN, 2002), com $\mathrm{DCG}=\sum_i g_i/\log_2(i+1)$ para o
+grau $g_i$ do documento na posição $i$. A MAP é a média da AP entre as
+consultas.
+
+% ==========================================================
+\section{Reordenação por proximidade de termos}
+\label{sec:prox}
+% ==========================================================
+
+A segunda etapa reordena os $k$ primeiros documentos do BM25 com um bônus de
+proximidade (TAO; ZHAI, 2007) medido sobre os tokens limpos: para cada par de
+termos da consulta, busca-se a menor distância $\delta$, dentro de uma janela de
+$w$ tokens, entre uma ocorrência do primeiro termo e uma posterior do segundo, e
+o par contribui com $1/\delta$. Na variante \textit{ordenada}, os termos devem
+aparecer na ordem da consulta; na \textit{livre}, soma-se também a ordem
+invertida. A pontuação é
+\begin{equation}
+  \mathrm{Score}(d)=\frac{\mathrm{BM25}(q,d)}{\max\limits_{d'}\mathrm{BM25}(q,d')}
+  +\lambda\cdot\frac{\mathrm{Prox}(q,d)}{\max\limits_{d'}\mathrm{Prox}(q,d')},
+\end{equation}
+e $k=0$ equivale ao BM25 puro. A configuração principal usa $k=10$, $w=3$ e
+$\lambda=1$.
+
+Nessa configuração, o desenvolvimento está saturado: nas seis consultas o
+primeiro relevante já ocupa a posição 1 do BM25 (AP média de 1,000, contra
+0,972 da ordenada e 1,000 da livre). No teste, o BM25 obteve MAP de 0,450 e
+nDCG graduado de 0,761, contra 0,317 e 0,722 da ordenada e 0,400 e 0,726 da
+livre (Tabela~\ref{tab:limiar}). Com $\lambda=1$ e o limiar 2, portanto, a
+reordenação não superou o BM25.
+
+Três consultas explicam a diferença. Na \texttt{q08} a proximidade ajudou: a AP
+foi de 0,417 para 0,500 (ordenada) e 0,750 (livre), pois os termos formam um
+sintagma. Na \texttt{q10} prejudicou: a AP caiu de 0,750 para 0,268, porque o
+parágrafo \texttt{santos\_08}, relevante e primeiro no BM25, caiu para a quarta
+posição atrás de \texttt{santos\_16}, \texttt{santos\_09} e \texttt{santos\_05},
+que têm termos mais próximos entre si; com $\lambda=1$, qualquer par próximo
+vale o máximo da parcela do BM25. A \texttt{q07} tem AP de 0,183 nos três métodos: o primeiro
+relevante está na posição 5 e nenhum documento do top-10 tem proximidade
+positiva, o que indica um problema de vocabulário, e não de ordenação.
+
+% ==========================================================
+\section{Sensibilidade ao limiar e aos parâmetros}
+\label{sec:sens}
+% ==========================================================
+
+A Tabela~\ref{tab:limiar} mostra a configuração principal em três cenários: o
+limiar 2 com três consultas de teste; o limiar 1 com as mesmas três; e o limiar
+1 com quatro, incluindo a \texttt{q09}. Com o limiar 2, o BM25 é o melhor em
+MAP. Com o limiar 1, que aceita a relevância parcial, a ordenada fica acima
+(0,715 contra 0,699) e a vantagem cresce com a \texttt{q09} (0,693 contra
+0,618); nesse cenário as duas variantes também superam o BM25 em nDCG graduado
+(0,743 e 0,746 contra 0,716). A proximidade parece, assim, ajudar mais a
+recuperar documentos parcialmente relevantes do que a manter no topo os
+altamente relevantes.
+
+\begin{table}[htb]
+  \centering
+  \caption{Teste: sensibilidade ao limiar e à inclusão da q09 ($k=10$, $w=3$, $\lambda=1$)}
+  \label{tab:limiar}
+  \footnotesize
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular}{@{}lrrrrrr@{}}
+    \toprule
+    & \multicolumn{2}{c}{\textbf{BM25}} & \multicolumn{2}{c}{\textbf{Ordenada}} & \multicolumn{2}{c}{\textbf{Livre}} \\
+    \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+    \textbf{Cenário} & \textbf{MAP} & \textbf{nDCG} & \textbf{MAP} & \textbf{nDCG} & \textbf{MAP} & \textbf{nDCG} \\
+    \midrule
+    Limiar 2, 3 consultas & 0,450 & 0,761 & 0,317 & 0,722 & 0,400 & 0,726 \\
+    Limiar 1, 3 consultas & 0,699 & 0,761 & 0,715 & 0,722 & 0,687 & 0,726 \\
+    Limiar 1, 4 consultas (com q09) & 0,618 & 0,716 & 0,693 & 0,743 & 0,672 & 0,746 \\
+    \bottomrule
+  \end{tabular}
+  \fonte{Produção Própria (2026)}
+\end{table}
+
+Uma grade de parâmetros ($k\in\{3,5,10,20,52\}$, $w\in\{1,2,3,5\}$,
+$\lambda\in\{0{,}25;0{,}5;1;2\}$) confirma o padrão: a ordenada coincide com o
+BM25 no teste com $k=3$ (0,450), é melhor com $\lambda$ pequeno (0,433 a 0,442
+com $\lambda=0{,}25$) e piora com o peso (0,317 com $\lambda\geq0{,}5$ e
+$k\geq10$), e a janela teve efeito pequeno. A proximidade só ajuda, portanto,
+com peso pequeno.
+
+% ==========================================================
+\section{Variantes de reordenação e expansão de consulta}
+\label{sec:melhorias}
+% ==========================================================
+
+Com $\lambda=1$ aditivo, o bônus vale tanto quanto toda a pontuação do BM25.
+Avaliaram-se, por isso, quatro famílias de variantes em grades fixadas
+previamente; as famílias A a C usam $w=3$ e reordenam os $k$ primeiros
+documentos ($k\in\{3,5,10,20\}$).
+
+\textbf{A (combinação conservadora).} Na forma aditiva (A1), a pontuação é
+$\mathrm{BM25}_n+\lambda\,\mathrm{Prox}_n$, com
+$\lambda\in\{0{,}05;0{,}1;0{,}25\}$; na multiplicativa (A2), é
+$\mathrm{BM25}_n\,(1+\lambda\,\mathrm{Prox}_n)$, com
+$\lambda\in\{0{,}1;0{,}25;0{,}5;1\}$, em que $n$ indica normalização pelo
+máximo. Ambas usam proximidade ordenada e livre.
+
+\textbf{B (menor trecho).} Sejam $m$ o número de termos distintos da consulta
+presentes no documento, $|q_u|$ o de termos distintos da consulta e $s$ o
+tamanho da menor janela de tokens que contém ao menos uma ocorrência de cada um
+dos $m$ termos. Então
+\begin{equation}
+  \mathrm{Prox}_{\mathrm{span}}(q,d)=\frac{m}{|q_u|}\cdot\frac{m}{s},
+  \qquad \mathrm{Prox}_{\mathrm{span}}=0\ \text{se}\ m<2,
+\end{equation}
+medida que premia os documentos que cobrem mais termos da consulta e os mantêm
+juntos, combinada ao BM25 pelas formas A1 e A2.
+
+\textbf{C (portão).} O bônus só é aplicado se a consulta tem ao menos dois
+termos distintos e o documento contém ao menos dois deles.
+\textbf{D (\textit{pseudo-relevance feedback}, ROCCHIO, 1971).} Calcula-se o
+centroide TF-IDF dos $k_{prf}$ primeiros documentos do BM25, escolhem-se os $n$
+termos de maior peso fora da consulta e refaz-se o BM25 com eles ponderados por
+um peso de expansão; com $k_{prf}=0$, o método coincide com o BM25.
+
+Fixou-se uma configuração de cada família antes de ver os resultados das
+variantes: A2 livre ($\lambda=0{,}25$, $k=10$); B com A2 ($\lambda=0{,}25$,
+$k=10$); C com portão, span e A2 (mesmos valores); e D com $k_{prf}=3$, 5 termos
+e peso 0,3. Isso não torna o teste totalmente cego, pois as famílias foram
+desenhadas depois de a \texttt{q10}, consulta de teste, revelar o dano do
+bônus. A Tabela~\ref{tab:apriori} compara as configurações com o BM25 e com a
+reordenação inicial.
+
+\begin{table}[htb]
+  \centering
+  \caption{MAP das configurações fixadas a priori e comparação com o BM25}
+  \label{tab:apriori}
+  \footnotesize
+  \setlength{\tabcolsep}{3pt}
+  \begin{tabular}{@{}lrrrrcc@{}}
+    \toprule
+    \textbf{Método} & \textbf{Dev} & \textbf{Teste} & \textbf{Teste, L1} & \textbf{9 cons.} & \textbf{G/E/P} & \textbf{IC 95\% (dif. MAP)} \\
+    \midrule
+    BM25 & 1,000 & 0,450 & 0,618 & 0,817 & --- & --- \\
+    Ordenada inicial ($k=10$, $\lambda=1$) & 0,972 & 0,317 & 0,693 & 0,754 & --- & --- \\
+    A: A2 livre & 1,000 & 0,450 & 0,612 & 0,817 & 0/9/0 & [0,000; 0,000] \\
+    B: span + A2 & 1,000 & 0,461 & 0,632 & 0,820 & 1/8/0 & [0,000; 0,011] \\
+    C: portão + span + A2 & 1,000 & 0,461 & 0,632 & 0,820 & 1/8/0 & [0,000; 0,011] \\
+    D: PRF & 1,000 & 0,337 & 0,583 & 0,779 & 0/8/1 & [$-$0,112; 0,000] \\
+    \bottomrule
+  \end{tabular}
+  \fonte{Produção Própria (2026). Teste: limiar 2, três consultas; L1: limiar 1
+  com quatro consultas (inclui q09). G/E/P: consultas em que o método ganha,
+  empata ou perde para o BM25 (diferença mínima de 0,01 na AP, limiar 2, nove
+  consultas). IC: bootstrap (EFRON; TIBSHIRANI, 1993) com 2.000 reamostragens das
+  nove consultas.}
+\end{table}
+
+A variante A coincide com o BM25 nas nove consultas: elimina o dano da
+\texttt{q10}, mas perde também o ganho da \texttt{q08}. B e C melhoram a
+\texttt{q08} (de 0,417 para 0,450) sem prejudicar nenhuma consulta, com
+resultados idênticos porque todas as consultas têm ao menos dois termos. A
+variante D piora a \texttt{q10} (de 0,750 para 0,417) e não resolve a
+\texttt{q07}: o primeiro relevante continua na posição 5 e os termos de
+expansão escolhidos (\texttt{guarniçã}, \texttt{revolucionári}, \texttt{govern},
+\texttt{bacharel} e \texttt{canan}) não aproximam a consulta do vocabulário dos
+relevantes. Seu top-10 contém ainda documentos sem julgamento, contados como
+irrelevantes. A
+Tabela~\ref{tab:grade2} resume a grade completa; seus valores são descritivos e
+não serviram para escolher parâmetros.
+
+\begin{table}[htb]
+  \centering
+  \caption{Grade completa: configurações acima / iguais / abaixo do BM25 (MAP)}
+  \label{tab:grade2}
+  \footnotesize
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular}{@{}lrccc@{}}
+    \toprule
+    \textbf{Variante} & \textbf{Config.} & \textbf{Teste (L2)} & \textbf{Dev (L2)} & \textbf{Teste (L1, 4 cons.)} \\
+    \midrule
+    A1 livre          & 12 & 0 / 9 / 3  & 0 / 12 / 0 & 4 / 6 / 2 \\
+    A1 ordenada       & 12 & 2 / 7 / 3  & 0 / 9 / 3  & 6 / 6 / 0 \\
+    A2 livre          & 16 & 1 / 9 / 6  & 0 / 16 / 0 & 8 / 4 / 4 \\
+    A2 ordenada       & 16 & 2 / 8 / 6  & 0 / 7 / 9  & 10 / 6 / 0 \\
+    B: span + A1      & 12 & 4 / 8 / 0  & 0 / 9 / 3  & 6 / 6 / 0 \\
+    B: span + A2      & 16 & 10 / 6 / 0 & 0 / 10 / 6 & 12 / 4 / 0 \\
+    C: portão         & 2  & 2 / 0 / 0  & 0 / 2 / 0  & 2 / 0 / 0 \\
+    D: PRF ($k_{prf}>0$) & 18 & 2 / 0 / 16 & 0 / 12 / 6 & 7 / 0 / 11 \\
+    \bottomrule
+  \end{tabular}
+  \fonte{Produção Própria (2026). BM25: 1,000 (dev), 0,450 (teste, L2) e 0,618
+  (teste, L1 com q09).}
+\end{table}
+
+A família B é a que apresenta o comportamento mais favorável. No teste com o
+limiar 2, nenhuma das 28 configurações com span fica abaixo do BM25 e 14 ficam
+acima (MAP de até 0,589); com o limiar 1 e a \texttt{q09}, 18 ficam acima e
+nenhuma abaixo, com MAP de até 0,731 contra 0,618. Nas 16 configurações de peso
+baixo (A1 com $\lambda\leq0{,}1$ e A2 com $\lambda\leq0{,}25$), o span preserva
+o desenvolvimento e nunca perde para o BM25, ganhando em 4 no teste (até 0,461)
+e em 8 com a \texttt{q09} (até 0,632). Como todas as configurações compartilham
+as mesmas consultas, essas contagens indicam a direção do efeito, e não amostras
+independentes. As de peso alto rendem os maiores MAP, mas não foram fixadas a
+priori, são exploratórias e concentram as 9 configurações abaixo do BM25 no
+desenvolvimento (MAP mínimo de 0,917). O PRF não trouxe ganho neste corpus: 16
+das 18 configurações ficam abaixo do BM25 (MAP de teste de 0,267 a 0,522).
+
+% ==========================================================
+\section{Limitações e considerações finais}
+\label{sec:fim}
+% ==========================================================
+
+O corpus final, com 52 documentos, atende ao intervalo da entrega e sustenta um
+motor com bom desempenho lexical: o BM25 colocou o primeiro relevante na
+posição 1 em sete das nove consultas avaliáveis, na 2 em uma e na 5 em outra,
+com MAP de 0,817, nDCG graduado de cerca de 0,90 e RR médio de cerca de 0,86. A
+reordenação com $\lambda=1$ não superou o BM25 no limiar 2, mas a análise por
+consulta identificou a causa (o peso excessivo do bônus, que rebaixou o
+\texttt{santos\_08} na \texttt{q10}), e a proximidade por menor trecho, com peso
+baixo, removeu o dano e trouxe ganhos pequenos, sem perdas nos três cenários,
+em consultas que também motivaram seu desenho.
+
+% ----------------------------------------------------------
+% REFERÊNCIAS
+% ----------------------------------------------------------
+\postextual
+
+\section*{Referências}
+\begingroup\linespread{1}\selectfont\raggedright\setlength{\parindent}{0pt}\setlength{\parskip}{0.6em}
+EFRON, B.; TIBSHIRANI, R. J. \textbf{An introduction to the bootstrap}. New York: Chapman \& Hall, 1993.
+
+JÄRVELIN, K.; KEKÄLÄINEN, J. Cumulated gain-based evaluation of IR techniques. \textbf{ACM Transactions on Information Systems}, v. 20, n. 4, p. 422--446, 2002.
+
+MANNING, C. D.; RAGHAVAN, P.; SCHÜTZE, H. \textbf{Introduction to information retrieval}. Cambridge: Cambridge University Press, 2008.
+
+ROBERTSON, S.; ZARAGOZA, H. The probabilistic relevance framework: BM25 and beyond. \textbf{Foundations and Trends in Information Retrieval}, v. 3, n. 4, p. 333--389, 2009.
+
+ROCCHIO, J. J. Relevance feedback in information retrieval. In: SALTON, G. (ed.). \textbf{The SMART retrieval system}. Englewood Cliffs: Prentice-Hall, 1971. p. 313--323.
+
+TAO, T.; ZHAI, C. An exploration of proximity measures in information retrieval. In: \textbf{Proceedings of the 30th ACM SIGIR}. Amsterdam: ACM, 2007. p. 295--302.
+\endgroup
+
+\end{document}
